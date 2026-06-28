@@ -38,11 +38,13 @@ if uploaded_file is not None:
         raw.filter(8.0, 30.0, verbose=False)
         events, event_id = mne.events_from_annotations(raw, verbose=False)
         
-        ev_left = event_id.get('769') or event_id.get('0x0301')
-        ev_right = event_id.get('770') or event_id.get('0x0302')
+        # Safe extraction of MNE event mappings
+        ev_left = event_id.get('769') or event_id.get('0x0301') or event_id.get('769.0')
+        ev_right = event_id.get('770') or event_id.get('0x0302') or event_id.get('770.0')
         valid_event_ids = [idx for idx in [ev_left, ev_right] if idx is not None]
         
-        trial_events = [ev for ev in events if ev in valid_event_ids]
+        # FIX: Access the 3rd column (index 2) of the MNE events matrix
+        trial_events = [ev for ev in events if ev[2] in valid_event_ids]
         total_trials = len(trial_events)
         
         if total_trials == 0:
@@ -53,14 +55,14 @@ if uploaded_file is not None:
             selected_trial_idx = str_lit.slider(f"Choose Trial (Total found: {total_trials})", 1, total_trials, 1) - 1
             
             chosen_event = trial_events[selected_trial_idx]
-            event_start_sample = chosen_event
+            event_start_sample = chosen_event[0] # Sample point is in column 0
             
             fs = int(raw.info['sfreq'])
             start_sample = event_start_sample + (4 * fs)
             end_sample = event_start_sample + (8 * fs)
             
             data, times = raw[:3, start_sample:end_sample]
-            true_label = "LEFT" if chosen_event == ev_left else "RIGHT"
+            true_label = "LEFT" if chosen_event[2] == ev_left else "RIGHT"
             
     except Exception as e:
         str_lit.error(f"Error processing EEG file structure: {e}")
@@ -108,5 +110,8 @@ if uploaded_file is not None:
         str_lit.markdown(f"**AI Classification Decision:** <span class='prediction-text'>{predicted_class}</span>", unsafe_allow_html=True)
         str_lit.markdown(f"**AI Model Confidence Level:** {confidence:.2f}%")
         str_lit.markdown('</div>', unsafe_allow_html=True)
+
+            
+               
 
 
