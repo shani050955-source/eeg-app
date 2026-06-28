@@ -29,7 +29,6 @@ str_lit.markdown(
 MODEL_PATH = 'eeg_finetuned_model.h5'
 
 
-@str_lit.cache_resource
 def load_my_eeg_model():
     if os.path.exists(MODEL_PATH):
         return tf.keras.models.load_model(MODEL_PATH, compile=False)
