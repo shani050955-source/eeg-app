@@ -1,0 +1,4 @@
+tensorflow
+mne
+scipy
+opencv-python-headless
