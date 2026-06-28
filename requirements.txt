@@ -1,4 +1,4 @@
-tensorflow
+tensorflow-cpu
 mne
 scipy
 opencv-python-headless
