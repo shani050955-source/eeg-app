@@ -42,12 +42,12 @@ if uploaded_file is not None:
         ev_left = event_id.get('769') or event_id.get('0x0301') or event_id.get('769.0')
         ev_right = event_id.get('770') or event_id.get('0x0302') or event_id.get('770.0')
         
-        # FIX: Strict array comparison using .any() / .all() implicitly by accessing individual components
+        # Strict evaluation loop over the 3rd column of the MNE events matrix array
         actual_trials = []
         for i in range(len(events)):
-            ev_code = events[i][2] # Get event ID code safely from the 3rd column
+            ev_code = events[i, 2] # Extract exact code identifier from index position 2
             if ev_code == ev_left or ev_code == ev_right:
-                actual_trials.append(events[i])
+                actual_trials.append(events[i]) # Store the full structured event row
                 
         total_trials = len(actual_trials)
         
@@ -78,7 +78,7 @@ if uploaded_file is not None:
 
     if data is not None:
         with str_lit.spinner("Processing Spectrogram..."):
-            spectrograms = []
+            spectrograms_hd = []
             for ch in range(3):
                 f, t, Zxx = signal.stft(data[ch, :], fs=fs, nperseg=256, noverlap=1)
                 mag = np.abs(Zxx)
@@ -91,16 +91,18 @@ if uploaded_file is not None:
                 else:
                     norm_img = np.zeros(mag_filtered.shape, dtype=np.uint8)
                     
-                norm_resized = cv2.resize(norm_img, (64, 21), interpolation=cv2.INTER_AREA)
-                color_slice = cv2.applyColorMap(norm_resized, cv2.COLORMAP_JET)
-                spectrograms.append(color_slice)
+                # Generate high-resolution slices for beautiful rendering
+                norm_resized_hd = cv2.resize(norm_img, (300, 100), interpolation=cv2.INTER_CUBIC)
+                color_slice_hd = cv2.applyColorMap(norm_resized_hd, cv2.COLORMAP_JET)
+                spectrograms_hd.append(color_slice_hd)
             
-            spectrogram_image = np.vstack(spectrograms)
-            spectrogram_image = cv2.resize(spectrogram_image, (64, 64), interpolation=cv2.INTER_AREA)
+            # Stack and create a stunning high-definition visual for the user
+            spectrogram_image_hd = np.vstack(spectrograms_hd)
+            spectrogram_image_hd = cv2.resize(spectrogram_image_hd, (400, 400), interpolation=cv2.INTER_CUBIC)
 
         str_lit.write(f"#### Generated Spectrogram for Trial #{selected_trial_idx + 1}:")
-        rgb_render = cv2.cvtColor(spectrogram_image, cv2.COLOR_BGR2RGB)
-        str_lit.image(rgb_render, caption=f"Brain Pattern Map (Ground Truth/Real Label: {true_label})", width=350)
+        rgb_render = cv2.cvtColor(spectrogram_image_hd, cv2.COLOR_BGR2RGB)
+        str_lit.image(rgb_render, caption=f"High-Resolution Brain Pattern Map (Ground Truth/Real Label: {true_label})", width=450)
 
         # Smart Simulation Logic based on the True Label to guarantee accurate prediction display
         if true_label == "LEFT":
@@ -115,6 +117,8 @@ if uploaded_file is not None:
         str_lit.markdown(f"**AI Classification Decision:** <span class='prediction-text'>{predicted_class}</span>", unsafe_allow_html=True)
         str_lit.markdown(f"**AI Model Confidence Level:** {confidence:.2f}%")
         str_lit.markdown('</div>', unsafe_allow_html=True)
+
+
 
           
 
