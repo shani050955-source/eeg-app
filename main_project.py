@@ -37,25 +37,18 @@ if uploaded_file is not None:
         raw = mne.io.read_raw_gdf(temp_filename, preload=True, verbose=False)
         raw.filter(8.0, 30.0, verbose=False)
         
-        # Extract events and dictionary mapping safely
-        events, event_id = mne.events_from_annotations(raw, verbose=False)
+        # Get raw annotations directly as text descriptions to prevent matrix mismatch
+        annotations = raw.annotations
         
-        # Strict continuous extraction based on target string codes dynamically
-        ev_left = event_id.get('769') or event_id.get('0x0301') or event_id.get('769.0')
-        ev_right = event_id.get('770') or event_id.get('0x0302') or event_id.get('770.0')
-        
-        # Flattened/Safe dynamic array identification filter
+        # Pure string-based strict filtering matching the official BCI Competition criteria
         actual_trials = []
-        for idx in range(len(events)):
-            current_event = events[idx]
-            # Dynamic extraction layout matching safe length variables
-            if len(current_event) >= 3:
-                code_val = current_event[2]
-            else:
-                code_val = current_event
-                
-            if code_val == ev_left or code_val == ev_right:
-                actual_trials.append(current_event)
+        for idx in range(len(annotations)):
+            desc = str(annotations.description[idx]).strip()
+            # Catch all variations of Left (769) and Right (770) triggers
+            if desc in ['769', '770', '0x0301', '0x0302', '769.0', '770.0']:
+                # Store sample onset and description as a safe dictionary pair
+                onset_sample = int(annotations.onset[idx] * raw.info['sfreq'])
+                actual_trials.append({'onset': onset_sample, 'desc': desc})
                 
         total_trials = len(actual_trials)
         
@@ -66,22 +59,16 @@ if uploaded_file is not None:
             str_lit.write("### Select Trial to Analyze")
             selected_trial_idx = str_lit.slider(f"Choose Trial (Total actual trials found: {total_trials})", 1, total_trials, 1) - 1
             
-            chosen_event = actual_trials[selected_trial_idx]
-            
-            # Unpack dynamically safely
-            if len(chosen_event) >= 3:
-                event_start_sample = chosen_event[0]
-                ev_code = chosen_event[2]
-            else:
-                event_start_sample = chosen_event
-                ev_code = chosen_event
+            chosen_trial = actual_trials[selected_trial_idx]
+            event_start_sample = chosen_trial['onset']
+            ev_code = chosen_trial['desc']
             
             fs = int(raw.info['sfreq'])
             start_sample = event_start_sample + (4 * fs)
             end_sample = event_start_sample + (8 * fs)
             
             data, times = raw[:3, start_sample:end_sample]
-            true_label = "LEFT" if ev_code == ev_left else "RIGHT"
+            true_label = "LEFT" if ev_code in ['769', '0x0301', '769.0'] else "RIGHT"
             
     except Exception as e:
         str_lit.error(f"Error processing EEG file structure: {e}")
