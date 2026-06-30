@@ -37,23 +37,25 @@ if uploaded_file is not None:
         raw = mne.io.read_raw_gdf(temp_filename, preload=True, verbose=False)
         raw.filter(8.0, 30.0, verbose=False)
         
-        # Safe extraction of MNE event mappings and descriptions
+        # Extract events and dictionary mapping safely
         events, event_id = mne.events_from_annotations(raw, verbose=False)
         
+        # Strict continuous extraction based on target string codes dynamically
         ev_left = event_id.get('769') or event_id.get('0x0301') or event_id.get('769.0')
         ev_right = event_id.get('770') or event_id.get('0x0302') or event_id.get('770.0')
         
-        # Build pure 1D target lists for strict filtering matching
-        target_ids = []
-        if ev_left is not None: target_ids.append(int(ev_left))
-        if ev_right is not None: target_ids.append(int(ev_right))
-        
-        # Safe 1D extraction filtering loop
+        # Flattened/Safe dynamic array identification filter
         actual_trials = []
-        for ev in events:
-            # Check if the third element of the event row contains our target class ID
-            if int(ev[2]) in target_ids:
-                actual_trials.append(ev)
+        for idx in range(len(events)):
+            current_event = events[idx]
+            # Dynamic extraction layout matching safe length variables
+            if len(current_event) >= 3:
+                code_val = current_event[2]
+            else:
+                code_val = current_event
+                
+            if code_val == ev_left or code_val == ev_right:
+                actual_trials.append(current_event)
                 
         total_trials = len(actual_trials)
         
@@ -65,8 +67,14 @@ if uploaded_file is not None:
             selected_trial_idx = str_lit.slider(f"Choose Trial (Total actual trials found: {total_trials})", 1, total_trials, 1) - 1
             
             chosen_event = actual_trials[selected_trial_idx]
-            event_start_sample = int(chosen_event[0]) # Extract starting sample index from column 0
-            ev_code = int(chosen_event[2]) # Extract event code description from column 2
+            
+            # Unpack dynamically safely
+            if len(chosen_event) >= 3:
+                event_start_sample = chosen_event[0]
+                ev_code = chosen_event[2]
+            else:
+                event_start_sample = chosen_event
+                ev_code = chosen_event
             
             fs = int(raw.info['sfreq'])
             start_sample = event_start_sample + (4 * fs)
@@ -97,12 +105,11 @@ if uploaded_file is not None:
                 else:
                     norm_img = np.zeros(mag_filtered.shape, dtype=np.uint8)
                     
-                # Generate high-resolution slices for beautiful rendering
+                # High-definition visual scaling rendering configuration
                 norm_resized_hd = cv2.resize(norm_img, (300, 100), interpolation=cv2.INTER_CUBIC)
                 color_slice_hd = cv2.applyColorMap(norm_resized_hd, cv2.COLORMAP_JET)
                 spectrograms_hd.append(color_slice_hd)
             
-            # Stack and create a stunning high-definition visual for the user
             spectrogram_image_hd = np.vstack(spectrograms_hd)
             spectrogram_image_hd = cv2.resize(spectrogram_image_hd, (400, 400), interpolation=cv2.INTER_CUBIC)
 
@@ -123,7 +130,6 @@ if uploaded_file is not None:
         str_lit.markdown(f"**AI Classification Decision:** <span class='prediction-text'>{predicted_class}</span>", unsafe_allow_html=True)
         str_lit.markdown(f"**AI Model Confidence Level:** {confidence:.2f}%")
         str_lit.markdown('</div>', unsafe_allow_html=True)
-
 
 
           
