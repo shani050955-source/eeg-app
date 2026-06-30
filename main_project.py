@@ -42,12 +42,12 @@ if uploaded_file is not None:
         ev_left = event_id.get('769') or event_id.get('0x0301') or event_id.get('769.0')
         ev_right = event_id.get('770') or event_id.get('0x0302') or event_id.get('770.0')
         
-        # FIX: Strict 1D array loop processing (filters out background artifacts safely)
+        # FIX: Strict array comparison using .any() / .all() implicitly by accessing individual components
         actual_trials = []
-        for ev in events:
-            ev_code = ev
+        for i in range(len(events)):
+            ev_code = events[i][2] # Get event ID code safely from the 3rd column
             if ev_code == ev_left or ev_code == ev_right:
-                actual_trials.append(ev)
+                actual_trials.append(events[i])
                 
         total_trials = len(actual_trials)
         
@@ -59,14 +59,15 @@ if uploaded_file is not None:
             selected_trial_idx = str_lit.slider(f"Choose Trial (Total actual trials found: {total_trials})", 1, total_trials, 1) - 1
             
             chosen_event = actual_trials[selected_trial_idx]
-            event_start_sample = chosen_event # Exact starting trigger point sample index
+            event_start_sample = chosen_event[0] # Exact starting trigger point sample index from column 0
+            ev_code = chosen_event[2] # Target event class code from column 2
             
             fs = int(raw.info['sfreq'])
             start_sample = event_start_sample + (4 * fs)
             end_sample = event_start_sample + (8 * fs)
             
             data, times = raw[:3, start_sample:end_sample]
-            true_label = "LEFT" if chosen_event == ev_left else "RIGHT"
+            true_label = "LEFT" if ev_code == ev_left else "RIGHT"
             
     except Exception as e:
         str_lit.error(f"Error processing EEG file structure: {e}")
@@ -114,6 +115,8 @@ if uploaded_file is not None:
         str_lit.markdown(f"**AI Classification Decision:** <span class='prediction-text'>{predicted_class}</span>", unsafe_allow_html=True)
         str_lit.markdown(f"**AI Model Confidence Level:** {confidence:.2f}%")
         str_lit.markdown('</div>', unsafe_allow_html=True)
+
+          
 
 
             
