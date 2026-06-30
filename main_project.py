@@ -36,18 +36,24 @@ if uploaded_file is not None:
         # Load raw data and extract events
         raw = mne.io.read_raw_gdf(temp_filename, preload=True, verbose=False)
         raw.filter(8.0, 30.0, verbose=False)
+        
+        # Safe extraction of MNE event mappings and descriptions
         events, event_id = mne.events_from_annotations(raw, verbose=False)
         
-        # Get the strict internal codes for Left (769) and Right (770) motor imagery tasks
         ev_left = event_id.get('769') or event_id.get('0x0301') or event_id.get('769.0')
         ev_right = event_id.get('770') or event_id.get('0x0302') or event_id.get('770.0')
         
-        # Strict evaluation loop over the 3rd column of the MNE events matrix array
+        # Build pure 1D target lists for strict filtering matching
+        target_ids = []
+        if ev_left is not None: target_ids.append(int(ev_left))
+        if ev_right is not None: target_ids.append(int(ev_right))
+        
+        # Safe 1D extraction filtering loop
         actual_trials = []
-        for i in range(len(events)):
-            ev_code = events[i, 2] # Extract exact code identifier from index position 2
-            if ev_code == ev_left or ev_code == ev_right:
-                actual_trials.append(events[i]) # Store the full structured event row
+        for ev in events:
+            # Check if the third element of the event row contains our target class ID
+            if int(ev[2]) in target_ids:
+                actual_trials.append(ev)
                 
         total_trials = len(actual_trials)
         
@@ -59,8 +65,8 @@ if uploaded_file is not None:
             selected_trial_idx = str_lit.slider(f"Choose Trial (Total actual trials found: {total_trials})", 1, total_trials, 1) - 1
             
             chosen_event = actual_trials[selected_trial_idx]
-            event_start_sample = chosen_event[0] # Exact starting trigger point sample index from column 0
-            ev_code = chosen_event[2] # Target event class code from column 2
+            event_start_sample = int(chosen_event[0]) # Extract starting sample index from column 0
+            ev_code = int(chosen_event[2]) # Extract event code description from column 2
             
             fs = int(raw.info['sfreq'])
             start_sample = event_start_sample + (4 * fs)
